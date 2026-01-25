@@ -12,12 +12,58 @@ on:
         required: false
         default: false
         type: boolean
+      skip_tests:
+        description: 'Skip tests (faster build)'
+        required: false
+        default: false
+        type: boolean
 
 env:
   REGISTRY: ghcr.io
 
 jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate OpenAPI SDK
+        run: pnpm --filter immich run sync:open-api
+
+      - name: Build server
+        run: pnpm --filter immich run build
+
+      - name: Run server tests
+        if: ${{ github.event.inputs.skip_tests != 'true' }}
+        run: pnpm --filter immich run test -- --run
+
+      - name: Build web
+        run: pnpm --filter immich-web run build
+
+      - name: Check for OpenAPI changes
+        run: |
+          if [ -n "$(git status --porcelain open-api/)" ]; then
+            echo "::warning::OpenAPI spec has uncommitted changes. Consider committing the generated files."
+            git diff open-api/
+          fi
+
   build-server:
+    needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,6 +113,7 @@ jobs:
             BUILD_SOURCE_REF=${{ github.ref_name }}
 
   build-ml:
+    needs: validate
     if: ${{ github.event.inputs.build_ml == 'true' }}
     runs-on: ubuntu-latest
     permissions:
