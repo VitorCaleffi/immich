@@ -137,6 +137,7 @@ const updatedConfig = Object.freeze<SystemConfig>({
     defaultStorageQuota: null,
     enabled: false,
     issuerUrl: '',
+    tokenUrl: '',
     mobileOverrideEnabled: false,
     mobileRedirectUri: '',
     scope: 'openid email profile',

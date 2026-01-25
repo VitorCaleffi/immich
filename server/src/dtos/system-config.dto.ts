@@ -405,6 +405,12 @@ class SystemConfigOAuthDto {
   @IsString()
   issuerUrl!: string;
 
+  @ValidateIf((config: SystemConfigOAuthDto) => config.enabled && !!config.tokenUrl)
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  @Optional()
+  @IsString()
+  tokenUrl!: string;
+
   @ValidateBoolean()
   mobileOverrideEnabled!: boolean;
 

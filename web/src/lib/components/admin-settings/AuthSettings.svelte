@@ -114,6 +114,16 @@
 
               <SettingInputField
                 inputType={SettingInputFieldType.TEXT}
+                label={$t('admin.oauth_token_url')}
+                description={$t('admin.oauth_token_url_description')}
+                bind:value={configToEdit.oauth.tokenUrl}
+                required={false}
+                disabled={disabled || !configToEdit.oauth.enabled}
+                isEdited={!(configToEdit.oauth.tokenUrl === config.oauth.tokenUrl)}
+              />
+
+              <SettingInputField
+                inputType={SettingInputFieldType.TEXT}
                 label="CLIENT_ID"
                 bind:value={configToEdit.oauth.clientId}
                 required={true}

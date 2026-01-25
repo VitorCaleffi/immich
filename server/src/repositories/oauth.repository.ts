@@ -7,6 +7,7 @@ export type OAuthConfig = {
   clientId: string;
   clientSecret?: string;
   issuerUrl: string;
+  tokenUrl?: string;
   mobileOverrideEnabled: boolean;
   mobileRedirectUri: string;
   profileSigningAlgorithm: string;
@@ -107,6 +108,7 @@ export class OAuthRepository {
 
   private async getClient({
     issuerUrl,
+    tokenUrl,
     clientId,
     clientSecret,
     profileSigningAlgorithm,
@@ -116,7 +118,7 @@ export class OAuthRepository {
   }: OAuthConfig) {
     try {
       const { allowInsecureRequests, discovery } = await import('openid-client');
-      return await discovery(
+      const client = await discovery(
         new URL(issuerUrl),
         clientId,
         {
@@ -131,6 +133,15 @@ export class OAuthRepository {
           timeout,
         },
       );
+
+      // Override token_endpoint if tokenUrl is provided
+      if (tokenUrl) {
+        const metadata = client.serverMetadata();
+        (metadata as Record<string, unknown>).token_endpoint = tokenUrl;
+        this.logger.debug(`Using custom token endpoint: ${tokenUrl}`);
+      }
+
+      return client;
     } catch (error: any | AggregateError) {
       this.logger.error(`Error in OAuth discovery: ${error}`, error?.stack, error?.errors);
       throw new InternalServerErrorException(`Error in OAuth discovery: ${error}`, { cause: error });

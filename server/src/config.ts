@@ -104,6 +104,7 @@ export interface SystemConfig {
     defaultStorageQuota: number | null;
     enabled: boolean;
     issuerUrl: string;
+    tokenUrl: string;
     mobileOverrideEnabled: boolean;
     mobileRedirectUri: string;
     scope: string;
@@ -294,6 +295,7 @@ export const defaults = Object.freeze<SystemConfig>({
     defaultStorageQuota: null,
     enabled: false,
     issuerUrl: '',
+    tokenUrl: '',
     mobileOverrideEnabled: false,
     mobileRedirectUri: '',
     scope: 'openid email profile',
