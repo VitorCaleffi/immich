@@ -40,11 +40,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate OpenAPI SDK
-        run: pnpm --filter immich run sync:open-api
-
       - name: Build server
         run: pnpm --filter immich run build
+
+      - name: Generate OpenAPI SDK
+        run: pnpm --filter immich run sync:open-api
 
       - name: Run server tests
         if: ${{ github.event.inputs.skip_tests != 'true' }}
