@@ -46,6 +46,9 @@ jobs:
       - name: Generate OpenAPI SDK
         run: pnpm --filter immich run sync:open-api
 
+      - name: Build TypeScript SDK
+        run: pnpm --filter @immich/sdk run build
+
       - name: Run server tests
         if: ${{ github.event.inputs.skip_tests != 'true' }}
         run: pnpm --filter immich run test -- --run
