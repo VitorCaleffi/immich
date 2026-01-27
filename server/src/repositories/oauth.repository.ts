@@ -67,13 +67,19 @@ export class OAuthRepository {
     expectedState: string,
     codeVerifier: string,
   ): Promise<OAuthProfile> {
-    const { authorizationCodeGrant, fetchUserInfo, ...oidc } = await import('openid-client');
+    const { allowInsecureRequests, authorizationCodeGrant, fetchUserInfo, ...oidc } = await import('openid-client');
     const client = await this.getClient(config);
     const pkceCodeVerifier = client.serverMetadata().supportsPKCE() ? codeVerifier : undefined;
 
     try {
-      const tokens = await authorizationCodeGrant(client, new URL(url), { expectedState, pkceCodeVerifier });
-      const profile = await fetchUserInfo(client, tokens.access_token, oidc.skipSubjectCheck);
+      const tokens = await authorizationCodeGrant(client, new URL(url), {
+        expectedState,
+        pkceCodeVerifier,
+        [allowInsecureRequests]: true,
+      });
+      const profile = await fetchUserInfo(client, tokens.access_token, oidc.skipSubjectCheck, {
+        [allowInsecureRequests]: true,
+      });
       if (!profile.sub) {
         throw new Error('Unexpected profile response, no `sub`');
       }
