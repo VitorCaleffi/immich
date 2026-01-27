@@ -75,10 +75,10 @@ export class OAuthRepository {
       const tokens = await authorizationCodeGrant(client, new URL(url), {
         expectedState,
         pkceCodeVerifier,
-        [allowInsecureRequests]: true,
+        [allowInsecureRequests as symbol]: true,
       });
       const profile = await fetchUserInfo(client, tokens.access_token, oidc.skipSubjectCheck, {
-        [allowInsecureRequests]: true,
+        [allowInsecureRequests as symbol]: true,
       });
       if (!profile.sub) {
         throw new Error('Unexpected profile response, no `sub`');
