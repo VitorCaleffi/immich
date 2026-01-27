@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import type { UserInfoResponse } from 'openid-client' with { 'resolution-mode': 'import' };
+import type { ServerMetadata, UserInfoResponse } from 'openid-client' with { 'resolution-mode': 'import' };
 import { OAuthTokenEndpointAuthMethod } from 'src/enum';
 import { LoggingRepository } from 'src/repositories/logging.repository';
 
@@ -160,7 +160,7 @@ export class OAuthRepository {
       // Create client configuration with the fetched metadata
       // Cast to ServerMetadata since we know the discovery response has the required fields
       const client = new Configuration(
-        metadata as import('openid-client').ServerMetadata,
+        metadata as ServerMetadata,
         clientId,
         {
           client_secret: clientSecret,
