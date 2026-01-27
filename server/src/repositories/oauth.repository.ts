@@ -72,14 +72,14 @@ export class OAuthRepository {
     const pkceCodeVerifier = client.serverMetadata().supportsPKCE() ? codeVerifier : undefined;
 
     try {
+      // Apply allowInsecureRequests to the client to allow HTTP endpoints
+      allowInsecureRequests(client);
+
       const tokens = await authorizationCodeGrant(client, new URL(url), {
         expectedState,
         pkceCodeVerifier,
-        [allowInsecureRequests as symbol]: true,
       });
-      const profile = await fetchUserInfo(client, tokens.access_token, oidc.skipSubjectCheck, {
-        [allowInsecureRequests as symbol]: true,
-      });
+      const profile = await fetchUserInfo(client, tokens.access_token, oidc.skipSubjectCheck);
       if (!profile.sub) {
         throw new Error('Unexpected profile response, no `sub`');
       }
