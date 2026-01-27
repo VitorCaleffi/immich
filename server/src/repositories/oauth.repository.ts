@@ -158,8 +158,9 @@ export class OAuthRepository {
       }
 
       // Create client configuration with the fetched metadata
+      // Cast to ServerMetadata since we know the discovery response has the required fields
       const client = new Configuration(
-        metadata,
+        metadata as import('openid-client').ServerMetadata,
         clientId,
         {
           client_secret: clientSecret,
