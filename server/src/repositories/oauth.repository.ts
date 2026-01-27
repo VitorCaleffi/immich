@@ -121,7 +121,7 @@ export class OAuthRepository {
     timeout,
   }: OAuthConfig) {
     try {
-      const { allowInsecureRequests, Configuration } = await import('openid-client');
+      const { Configuration } = await import('openid-client');
 
       // Manually fetch the discovery document to avoid issuer URL validation
       // This allows using an internal URL for discovery while overriding endpoints for split-horizon DNS
@@ -168,7 +168,6 @@ export class OAuthRepository {
           id_token_signed_response_alg: signingAlgorithm,
         },
         await this.getTokenAuthMethod(tokenEndpointAuthMethod, clientSecret),
-        { execute: [allowInsecureRequests] },
       );
 
       return client;

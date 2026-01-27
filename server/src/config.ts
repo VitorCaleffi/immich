@@ -104,7 +104,9 @@ export interface SystemConfig {
     defaultStorageQuota: number | null;
     enabled: boolean;
     issuerUrl: string;
+    authorizeUrl: string;
     tokenUrl: string;
+    userInfoUrl: string;
     mobileOverrideEnabled: boolean;
     mobileRedirectUri: string;
     scope: string;
