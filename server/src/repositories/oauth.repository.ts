@@ -7,7 +7,9 @@ export type OAuthConfig = {
   clientId: string;
   clientSecret?: string;
   issuerUrl: string;
+  authorizeUrl?: string;
   tokenUrl?: string;
+  userInfoUrl?: string;
   mobileOverrideEnabled: boolean;
   mobileRedirectUri: string;
   profileSigningAlgorithm: string;
@@ -108,7 +110,9 @@ export class OAuthRepository {
 
   private async getClient({
     issuerUrl,
+    authorizeUrl,
     tokenUrl,
+    userInfoUrl,
     clientId,
     clientSecret,
     profileSigningAlgorithm,
@@ -117,9 +121,45 @@ export class OAuthRepository {
     timeout,
   }: OAuthConfig) {
     try {
-      const { allowInsecureRequests, discovery } = await import('openid-client');
-      const client = await discovery(
-        new URL(issuerUrl),
+      const { allowInsecureRequests, Configuration } = await import('openid-client');
+
+      // Manually fetch the discovery document to avoid issuer URL validation
+      // This allows using an internal URL for discovery while overriding endpoints for split-horizon DNS
+      const discoveryUrl = new URL('.well-known/openid-configuration', issuerUrl);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      let metadata: Record<string, unknown>;
+      try {
+        const response = await fetch(discoveryUrl, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`Discovery request failed: ${response.status} ${response.statusText}`);
+        }
+        metadata = await response.json();
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      // Override endpoints for split-horizon DNS setups
+      // authorizeUrl: external URL for browser redirects
+      // tokenUrl: can be internal for server-to-server communication
+      // userInfoUrl: can be internal for server-to-server communication
+      if (authorizeUrl) {
+        metadata.authorization_endpoint = authorizeUrl;
+        this.logger.debug(`Using custom authorization endpoint: ${authorizeUrl}`);
+      }
+      if (tokenUrl) {
+        metadata.token_endpoint = tokenUrl;
+        this.logger.debug(`Using custom token endpoint: ${tokenUrl}`);
+      }
+      if (userInfoUrl) {
+        metadata.userinfo_endpoint = userInfoUrl;
+        this.logger.debug(`Using custom userinfo endpoint: ${userInfoUrl}`);
+      }
+
+      // Create client configuration with the fetched metadata
+      const client = new Configuration(
+        metadata,
         clientId,
         {
           client_secret: clientSecret,
@@ -128,18 +168,8 @@ export class OAuthRepository {
           id_token_signed_response_alg: signingAlgorithm,
         },
         await this.getTokenAuthMethod(tokenEndpointAuthMethod, clientSecret),
-        {
-          execute: [allowInsecureRequests],
-          timeout,
-        },
+        { execute: [allowInsecureRequests] },
       );
-
-      // Override token_endpoint if tokenUrl is provided
-      if (tokenUrl) {
-        const metadata = client.serverMetadata();
-        (metadata as Record<string, unknown>).token_endpoint = tokenUrl;
-        this.logger.debug(`Using custom token endpoint: ${tokenUrl}`);
-      }
 
       return client;
     } catch (error: any | AggregateError) {

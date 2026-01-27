@@ -114,12 +114,32 @@
 
               <SettingInputField
                 inputType={SettingInputFieldType.TEXT}
+                label={$t('admin.oauth_authorize_url')}
+                description={$t('admin.oauth_authorize_url_description')}
+                bind:value={configToEdit.oauth.authorizeUrl}
+                required={false}
+                disabled={disabled || !configToEdit.oauth.enabled}
+                isEdited={!(configToEdit.oauth.authorizeUrl === config.oauth.authorizeUrl)}
+              />
+
+              <SettingInputField
+                inputType={SettingInputFieldType.TEXT}
                 label={$t('admin.oauth_token_url')}
                 description={$t('admin.oauth_token_url_description')}
                 bind:value={configToEdit.oauth.tokenUrl}
                 required={false}
                 disabled={disabled || !configToEdit.oauth.enabled}
                 isEdited={!(configToEdit.oauth.tokenUrl === config.oauth.tokenUrl)}
+              />
+
+              <SettingInputField
+                inputType={SettingInputFieldType.TEXT}
+                label={$t('admin.oauth_userinfo_url')}
+                description={$t('admin.oauth_userinfo_url_description')}
+                bind:value={configToEdit.oauth.userInfoUrl}
+                required={false}
+                disabled={disabled || !configToEdit.oauth.enabled}
+                isEdited={!(configToEdit.oauth.userInfoUrl === config.oauth.userInfoUrl)}
               />
 
               <SettingInputField
