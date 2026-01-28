@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import type { UserInfoResponse } from 'openid-client' with { 'resolution-mode': 'import' };
+import type { ServerMetadata, UserInfoResponse } from 'openid-client' with { 'resolution-mode': 'import' };
 import { OAuthTokenEndpointAuthMethod } from 'src/enum';
 import { LoggingRepository } from 'src/repositories/logging.repository';
 
@@ -7,6 +7,10 @@ export type OAuthConfig = {
   clientId: string;
   clientSecret?: string;
   issuerUrl: string;
+  authorizeUrl?: string;
+  tokenUrl?: string;
+  userInfoUrl?: string;
+  endSessionUrl?: string;
   mobileOverrideEnabled: boolean;
   mobileRedirectUri: string;
   profileSigningAlgorithm: string;
@@ -64,11 +68,14 @@ export class OAuthRepository {
     expectedState: string,
     codeVerifier: string,
   ): Promise<OAuthProfile> {
-    const { authorizationCodeGrant, fetchUserInfo, ...oidc } = await import('openid-client');
+    const { allowInsecureRequests, authorizationCodeGrant, fetchUserInfo, ...oidc } = await import('openid-client');
     const client = await this.getClient(config);
     const pkceCodeVerifier = client.serverMetadata().supportsPKCE() ? codeVerifier : undefined;
 
     try {
+      // Apply allowInsecureRequests to the client to allow HTTP endpoints
+      allowInsecureRequests(client);
+
       const tokens = await authorizationCodeGrant(client, new URL(url), { expectedState, pkceCodeVerifier });
       const profile = await fetchUserInfo(client, tokens.access_token, oidc.skipSubjectCheck);
       if (!profile.sub) {
@@ -107,6 +114,10 @@ export class OAuthRepository {
 
   private async getClient({
     issuerUrl,
+    authorizeUrl,
+    tokenUrl,
+    userInfoUrl,
+    endSessionUrl,
     clientId,
     clientSecret,
     profileSigningAlgorithm,
@@ -115,9 +126,51 @@ export class OAuthRepository {
     timeout,
   }: OAuthConfig) {
     try {
-      const { allowInsecureRequests, discovery } = await import('openid-client');
-      return await discovery(
-        new URL(issuerUrl),
+      const { Configuration } = await import('openid-client');
+
+      // Manually fetch the discovery document to avoid issuer URL validation
+      // This allows using an internal URL for discovery while overriding endpoints for split-horizon DNS
+      const discoveryUrl = new URL('.well-known/openid-configuration', issuerUrl);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      let metadata: Record<string, unknown>;
+      try {
+        const response = await fetch(discoveryUrl, { signal: controller.signal });
+        if (!response.ok) {
+          throw new Error(`Discovery request failed: ${response.status} ${response.statusText}`);
+        }
+        metadata = await response.json();
+      } finally {
+        clearTimeout(timeoutId);
+      }
+
+      // Override endpoints for split-horizon DNS setups
+      // authorizeUrl: external URL for browser redirects
+      // tokenUrl: can be internal for server-to-server communication
+      // userInfoUrl: can be internal for server-to-server communication
+      // endSessionUrl: external URL for browser redirects
+      if (authorizeUrl) {
+        metadata.authorization_endpoint = authorizeUrl;
+        this.logger.debug(`Using custom authorization endpoint: ${authorizeUrl}`);
+      }
+      if (tokenUrl) {
+        metadata.token_endpoint = tokenUrl;
+        this.logger.debug(`Using custom token endpoint: ${tokenUrl}`);
+      }
+      if (userInfoUrl) {
+        metadata.userinfo_endpoint = userInfoUrl;
+        this.logger.debug(`Using custom userinfo endpoint: ${userInfoUrl}`);
+      }
+      if (endSessionUrl) {
+        metadata.end_session_endpoint = endSessionUrl;
+        this.logger.debug(`Using custom end session endpoint: ${endSessionUrl}`);
+      }
+
+      // Create client configuration with the fetched metadata
+      // Cast to ServerMetadata since we know the discovery response has the required fields
+      const client = new Configuration(
+        metadata as ServerMetadata,
         clientId,
         {
           client_secret: clientSecret,
@@ -126,11 +179,9 @@ export class OAuthRepository {
           id_token_signed_response_alg: signingAlgorithm,
         },
         await this.getTokenAuthMethod(tokenEndpointAuthMethod, clientSecret),
-        {
-          execute: [allowInsecureRequests],
-          timeout,
-        },
       );
+
+      return client;
     } catch (error: any | AggregateError) {
       this.logger.error(`Error in OAuth discovery: ${error}`, error?.stack, error?.errors);
       throw new InternalServerErrorException(`Error in OAuth discovery: ${error}`, { cause: error });

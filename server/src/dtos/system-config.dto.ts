@@ -411,6 +411,30 @@ class SystemConfigOAuthDto {
   @IsString()
   issuerUrl!: string;
 
+  @ValidateIf((config: SystemConfigOAuthDto) => config.enabled && !!config.authorizeUrl)
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  @Optional()
+  @IsString()
+  authorizeUrl!: string;
+
+  @ValidateIf((config: SystemConfigOAuthDto) => config.enabled && !!config.tokenUrl)
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  @Optional()
+  @IsString()
+  tokenUrl!: string;
+
+  @ValidateIf((config: SystemConfigOAuthDto) => config.enabled && !!config.userInfoUrl)
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  @Optional()
+  @IsString()
+  userInfoUrl!: string;
+
+  @ValidateIf((config: SystemConfigOAuthDto) => config.enabled && !!config.endSessionUrl)
+  @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
+  @Optional()
+  @IsString()
+  endSessionUrl!: string;
+
   @ValidateBoolean()
   mobileOverrideEnabled!: boolean;
 
