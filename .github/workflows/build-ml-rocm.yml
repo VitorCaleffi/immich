@@ -1,0 +1,86 @@
+name: Build ML ROCm
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Image tag (e.g., latest, v2.5.0-rocm)'
+        required: false
+        default: 'latest-rocm'
+  push:
+    branches:
+      - feat/oauth-endpoint-overrides
+    paths:
+      - 'machine-learning/**'
+      - '.github/workflows/build-ml-rocm.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/immich-machine-learning
+
+jobs:
+  build-ml-rocm:
+    name: Build ML ROCm Image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          # Remove unnecessary tools to free up space for the large ROCm image
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force
+          echo "Disk space after cleanup:"
+          df -h
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ github.event.inputs.tag || 'latest-rocm' }}
+            type=raw,value=rocm-7.1.1
+            type=sha,prefix=rocm-,suffix=
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: machine-learning
+          file: machine-learning/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            DEVICE=rocm
+            BUILD_ID=${{ github.run_id }}
+            BUILD_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+            BUILD_SOURCE_REF=${{ github.ref_name }}
+            BUILD_SOURCE_COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
